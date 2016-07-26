@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="light_blue_500">#03A9F4</color>
+    <color name="background">@color/light_blue_500</color>
+    <color name="digital_text">#ffffff</color>
+</resources>
