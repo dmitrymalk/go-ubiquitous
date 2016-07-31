@@ -7,7 +7,7 @@
     <dimen name="digital_time_y_offset">85dp</dimen>
 
     <dimen name="date_text_size">14dp</dimen>
-    <dimen name="date_text_size_round">25dp</dimen>
+    <dimen name="date_text_size_round">20dp</dimen>
 
     <dimen name="temperature_text_size">14dp</dimen>
     <dimen name="temperature_text_size_round">14dp</dimen>
