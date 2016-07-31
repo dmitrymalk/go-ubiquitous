@@ -8,17 +8,7 @@
 
     <dimen name="date_text_size">14dp</dimen>
     <dimen name="date_text_size_round">25dp</dimen>
-    <dimen name="date_x_offset">20dp</dimen>
-    <dimen name="date_x_offset_round">25dp</dimen>
-    <dimen name="date_y_offset">118dp</dimen>
-
-    <dimen name="icon_x_offset">40dp</dimen>
-    <dimen name="icon_x_offset_round">45dp</dimen>
-    <dimen name="icon_y_offset">125dp</dimen>
 
     <dimen name="temperature_text_size">14dp</dimen>
-    <dimen name="temperature_text_size_round">25dp</dimen>
-    <dimen name="temperature_x_offset">85dp</dimen>
-    <dimen name="temperature_x_offset_round">95dp</dimen>
-    <dimen name="temperature_y_offset">158dp</dimen>
+    <dimen name="temperature_text_size_round">14dp</dimen>
 </resources>

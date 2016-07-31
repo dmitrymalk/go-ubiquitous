@@ -116,18 +116,12 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
         Paint mTimePaint;
 
         String date = "";
-        float mDateXOffset;
-        float mDateYOffset;
         Paint mDatePaint;
 
         Bitmap mBitmap;
-        float mIconXOffset;
-        float mIconYOffset;
         Paint mIconPaint;
 
-        String temperature = "";
-        float mTemperatureXOffset;
-        float mTemperatureYOffset;
+        String temperature = "29/14";
         Paint mTemperaturePaint;
 
         @Override
@@ -151,13 +145,11 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
             mTimePaint.setTypeface(NORMAL_TYPEFACE);
             mTimePaint.setAntiAlias(true);
 
-            mDateYOffset = resources.getDimension(R.dimen.date_y_offset);
             mDatePaint = new Paint();
             mDatePaint.setColor(resources.getColor(R.color.digital_text));
             mDatePaint.setTypeface(NORMAL_TYPEFACE);
             mDatePaint.setAntiAlias(true);
 
-            mIconYOffset = resources.getDimension(R.dimen.icon_y_offset);
             mIconPaint = new Paint();
             float scaleToUse = 0.5f;
             mBitmap = BitmapFactory.decodeResource(resources, R.drawable.art_clear);
@@ -165,7 +157,6 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
             float sizeX = (float) mBitmap.getWidth() * scaleToUse;
             mBitmap = Bitmap.createScaledBitmap(mBitmap, (int) sizeX, (int) sizeY, false);
 
-            mTemperatureYOffset = resources.getDimension(R.dimen.temperature_y_offset);
             mTemperaturePaint = new Paint();
             mTemperaturePaint.setColor(resources.getColor(R.color.digital_text));
             mTemperaturePaint.setTypeface(NORMAL_TYPEFACE);
@@ -227,17 +218,10 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
                     ? R.dimen.digital_time_text_size_round : R.dimen.digital_time_text_size);
             mTimePaint.setTextSize(timeTextSize);
 
-            mDateXOffset = resources.getDimension(isRound
-                    ? R.dimen.date_x_offset_round : R.dimen.date_x_offset);
             float dateTextSize = resources.getDimension(isRound
                     ? R.dimen.date_text_size_round : R.dimen.date_text_size);
             mDatePaint.setTextSize(dateTextSize);
 
-            mIconXOffset = resources.getDimension(isRound
-                    ? R.dimen.icon_x_offset_round : R.dimen.icon_x_offset);
-
-            mTemperatureXOffset = resources.getDimension(isRound
-                    ? R.dimen.temperature_x_offset_round : R.dimen.temperature_x_offset);
             float temperatureTextSize = resources.getDimension(isRound
                     ? R.dimen.temperature_text_size_round : R.dimen.temperature_text_size);
             mTemperaturePaint.setTextSize(temperatureTextSize);
@@ -274,7 +258,6 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
                 }
                 invalidate();
             }
-
             // Whether the timer should be running depends on whether we're visible (as well as
             // whether we're in ambient mode), so we may need to start or stop the timer.
             updateTimer();
@@ -282,20 +265,28 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
 
         @Override
         public void onDraw(Canvas canvas, Rect bounds) {
-            // Draw the background.
+            // Draw the background
             if (isInAmbientMode()) {
                 canvas.drawColor(Color.BLACK);
             } else {
                 canvas.drawRect(0, 0, bounds.width(), bounds.height(), mBackgroundPaint);
             }
-            // Current date
-            canvas.drawText(date, mDateXOffset, mDateYOffset, mDatePaint);
             // Current time
-            canvas.drawText(time, mTimeXOffset, mTimeYOffset, mTimePaint);
-            // Whether Icon
-            canvas.drawBitmap(mBitmap, mIconXOffset, mIconYOffset, mIconPaint);
-            // Whether Icon
-            canvas.drawText("29/14", mTemperatureXOffset, mTemperatureYOffset, mTemperaturePaint);
+            float xPosTime = canvas.getWidth() / 2 - mTimePaint.measureText(time, 0, time.length()) / 2;
+            canvas.drawText(time, xPosTime, mTimeYOffset, mTimePaint);
+            // Current date
+            int padding = 16;
+            float yPosDate = mTimeYOffset + mDatePaint.getTextSize() + padding;
+            float xPosDate = canvas.getWidth() / 2 - mDatePaint.measureText(date, 0, date.length()) / 2;
+            canvas.drawText(date, xPosDate, yPosDate, mDatePaint);
+            // Weather Icon
+            float yPosIcon = yPosDate + padding;
+            float xPosIcon = canvas.getWidth() / 2 - mBitmap.getWidth();
+            canvas.drawBitmap(mBitmap, xPosIcon, yPosIcon, mIconPaint);
+            // Temperature
+            float yPosWeather = yPosDate + mTemperaturePaint.getTextSize() + mBitmap.getHeight() / 2;
+            float xPosWeather = canvas.getWidth() / 2;
+            canvas.drawText(temperature, xPosWeather, yPosWeather, mTemperaturePaint);
         }
 
         /**
