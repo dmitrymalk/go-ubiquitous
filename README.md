@@ -4,7 +4,7 @@
 
 Go Ubiquitous is the eighth project in Udacity's Android Developer Nanodegree. 
 
-## License
+## License 
 
 Copyright 2016 Dmitry Malkovich
 
