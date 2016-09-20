@@ -2,7 +2,7 @@
 
 [![Crates.io](https://img.shields.io/crates/l/rustc-serialize.svg?maxAge=2592000)]()
 
-Go Ubiquitous is the eighth project in Udacity's Android Developer Nanodegree. 
+Go Ubiquitous is the eighth project in Udacity's Android Developer Nanodegree.  
 
 ## License 
 
