@@ -37,6 +37,8 @@ import android.text.format.Time;
 import android.view.SurfaceHolder;
 import android.view.WindowInsets;
 
+import com.example.android.sunshine.app.R;
+
 import java.lang.ref.WeakReference;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
@@ -51,6 +53,7 @@ import java.util.concurrent.TimeUnit;
  * Updated by Dmitry Malkovich.
  */
 public class SunshineWatchFace extends CanvasWatchFaceService {
+    public static final String LOG_TAG = SunshineWatchFace.class.getSimpleName();
     private static final Typeface NORMAL_TYPEFACE =
             Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL);
     /**
