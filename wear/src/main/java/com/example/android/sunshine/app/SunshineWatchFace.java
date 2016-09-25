@@ -13,13 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.dmitrymalkovich.android.goubiquitous;
+package com.example.android.sunshine.app;
 
 import android.annotation.SuppressLint;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.SharedPreferences;
 import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -31,13 +32,23 @@ import android.graphics.Typeface;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
+import android.support.annotation.Nullable;
 import android.support.wearable.watchface.CanvasWatchFaceService;
 import android.support.wearable.watchface.WatchFaceStyle;
 import android.text.format.Time;
+
+import android.util.Log;
 import android.view.SurfaceHolder;
 import android.view.WindowInsets;
 
-import com.example.android.sunshine.app.R;
+import com.google.android.gms.common.api.GoogleApiClient;
+import com.google.android.gms.wearable.DataApi;
+import com.google.android.gms.wearable.DataEvent;
+import com.google.android.gms.wearable.DataEventBuffer;
+import com.google.android.gms.wearable.DataItem;
+import com.google.android.gms.wearable.DataMap;
+import com.google.android.gms.wearable.DataMapItem;
+import com.google.android.gms.wearable.Wearable;
 
 import java.lang.ref.WeakReference;
 import java.text.DateFormat;
@@ -53,7 +64,7 @@ import java.util.concurrent.TimeUnit;
  * Updated by Dmitry Malkovich.
  */
 public class SunshineWatchFace extends CanvasWatchFaceService {
-    public static final String LOG_TAG = SunshineWatchFace.class.getSimpleName();
+    public static String LOG_TAG = SunshineWatchFace.class.getSimpleName();
     private static final Typeface NORMAL_TYPEFACE =
             Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL);
     /**
@@ -75,7 +86,7 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
     private static class EngineHandler extends Handler {
         private final WeakReference<SunshineWatchFace.Engine> mWeakReference;
 
-        public EngineHandler(SunshineWatchFace.Engine reference) {
+        EngineHandler(SunshineWatchFace.Engine reference) {
             mWeakReference = new WeakReference<>(reference);
         }
 
@@ -92,7 +103,15 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
         }
     }
 
-    private class Engine extends CanvasWatchFaceService.Engine {
+    private class Engine extends CanvasWatchFaceService.Engine
+            implements GoogleApiClient.ConnectionCallbacks, DataApi.DataListener {
+        static final String PREFERENCES = "PREFERENCES";
+        static final String KEY_WEATHER = "KEY_WEATHER";
+        static final String KEY_WEATHER_ID = "KEY_WEATHER_ID";
+        static final String WEATHER_DATA_PATH = "/WEATHER_DATA_PATH";
+        static final String WEATHER_DATA_ID = "WEATHER_DATA_ID";
+        static final String WEATHER_DATA_HIGH = "WEATHER_DATA_HIGH";
+        static final String WEATHER_DATA_LOW = "WEATHER_DATA_LOW";
         final Handler mUpdateTimeHandler = new EngineHandler(this);
         boolean mRegisteredTimeZoneReceiver = false;
         boolean mAmbient;
@@ -121,15 +140,28 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
         String date = "";
         Paint mDatePaint;
 
-        Bitmap mBitmap;
+        @Nullable Bitmap mBitmap;
         Paint mIconPaint;
-
-        String temperature = "29/14";
         Paint mTemperaturePaint;
+
+        @Nullable String mWeather;
+        private int mWeatherId;
+
+        private GoogleApiClient mGoogleApiClient;
 
         @Override
         public void onCreate(SurfaceHolder holder) {
             super.onCreate(holder);
+
+            SharedPreferences preferences = getSharedPreferences(PREFERENCES, MODE_PRIVATE);
+            mWeather = preferences.getString(KEY_WEATHER, "");
+            mWeatherId = preferences.getInt(KEY_WEATHER_ID, 0);
+            loadIconForWeatherId();
+
+            mGoogleApiClient = new GoogleApiClient.Builder(SunshineWatchFace.this)
+                    .addApi(Wearable.API)
+                    .addConnectionCallbacks(this)
+                    .build();
 
             setWatchFaceStyle(new WatchFaceStyle.Builder(SunshineWatchFace.this)
                     .setCardPeekMode(WatchFaceStyle.PEEK_MODE_VARIABLE)
@@ -154,11 +186,6 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
             mDatePaint.setAntiAlias(true);
 
             mIconPaint = new Paint();
-            float scaleToUse = 0.5f;
-            mBitmap = BitmapFactory.decodeResource(resources, R.drawable.art_clear);
-            float sizeY = (float) mBitmap.getHeight() * scaleToUse;
-            float sizeX = (float) mBitmap.getWidth() * scaleToUse;
-            mBitmap = Bitmap.createScaledBitmap(mBitmap, (int) sizeX, (int) sizeY, false);
 
             mTemperaturePaint = new Paint();
             mTemperaturePaint.setColor(resources.getColor(R.color.digital_text));
@@ -191,6 +218,42 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
             updateTimer();
         }
 
+        @Override
+        public void onConnected(@Nullable Bundle bundle) {
+            Log.d(LOG_TAG, "onConnected");
+            Wearable.DataApi.addListener(mGoogleApiClient, this);
+        }
+
+        @Override
+        public void onDataChanged(DataEventBuffer dataEventBuffer) {
+            Log.d(LOG_TAG, "Weather data has been changed!");
+            for (DataEvent event : dataEventBuffer) {
+                DataItem item = event.getDataItem();
+                if (WEATHER_DATA_PATH.equals(item.getUri().getPath())) {
+                    DataMap dataMap = DataMapItem.fromDataItem(item).getDataMap();
+                    double high = dataMap.getDouble(WEATHER_DATA_HIGH);
+                    double low = dataMap.getDouble(WEATHER_DATA_LOW);
+                    long id = dataMap.getLong(WEATHER_DATA_ID);
+
+                    mWeather = (int) Math.round(high) + "/" +  (int) Math.round(low);
+                    mWeatherId = (int) id;
+
+                    loadIconForWeatherId();
+
+                    SharedPreferences preferences = getSharedPreferences(PREFERENCES, MODE_PRIVATE);
+                    SharedPreferences.Editor editor = preferences.edit();
+                    editor.putString(KEY_WEATHER, mWeather);
+                    editor.putInt(KEY_WEATHER_ID, mWeatherId);
+                    editor.apply();
+                }
+            }
+        }
+
+        @Override
+        public void onConnectionSuspended(int i) {
+            Log.d(LOG_TAG, "onConnectionSuspended");
+        }
+
         private void registerReceiver() {
             if (mRegisteredTimeZoneReceiver) {
                 return;
@@ -198,6 +261,7 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
             mRegisteredTimeZoneReceiver = true;
             IntentFilter filter = new IntentFilter(Intent.ACTION_TIMEZONE_CHANGED);
             SunshineWatchFace.this.registerReceiver(mTimeZoneReceiver, filter);
+            mGoogleApiClient.connect();
         }
 
         private void unregisterReceiver() {
@@ -206,6 +270,8 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
             }
             mRegisteredTimeZoneReceiver = false;
             SunshineWatchFace.this.unregisterReceiver(mTimeZoneReceiver);
+            Wearable.DataApi.removeListener(mGoogleApiClient, this);
+            mGoogleApiClient.disconnect();
         }
 
         @Override
@@ -280,14 +346,54 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
                 float yPosDate = mTimeYOffset + mDatePaint.getTextSize() + padding;
                 float xPosDate = canvas.getWidth() / 2 - mDatePaint.measureText(date, 0, date.length()) / 2;
                 canvas.drawText(date, xPosDate, yPosDate, mDatePaint);
-                // Weather Icon
-                float yPosIcon = yPosDate + padding;
-                float xPosIcon = canvas.getWidth() / 2 - mBitmap.getWidth();
-                canvas.drawBitmap(mBitmap, xPosIcon, yPosIcon, mIconPaint);
-                // Temperature
-                float yPosWeather = yPosDate + mTemperaturePaint.getTextSize() + mBitmap.getHeight() / 2;
-                float xPosWeather = canvas.getWidth() / 2;
-                canvas.drawText(temperature, xPosWeather, yPosWeather, mTemperaturePaint);
+
+                if (mWeatherId != 0 && mBitmap != null) {
+                    // Weather Icon
+                    float yPosIcon = yPosDate + padding;
+                    float xPosIcon = canvas.getWidth() / 2 - mBitmap.getWidth();
+                    canvas.drawBitmap(mBitmap, xPosIcon, yPosIcon, mIconPaint);
+
+                    // Temperature
+                    float yPosWeather = yPosDate + mTemperaturePaint.getTextSize() + mBitmap.getHeight() / 2;
+                    float xPosWeather = canvas.getWidth() / 2;
+                    canvas.drawText(mWeather != null ? mWeather : "", xPosWeather, yPosWeather, mTemperaturePaint);
+                }
+            }
+        }
+
+        private void loadIconForWeatherId() {
+
+            int iconId = 0;
+            if (mWeatherId >= 200 && mWeatherId <= 232) {
+                iconId = R.drawable.ic_storm;
+            } else if (mWeatherId >= 300 && mWeatherId <= 321) {
+                iconId = R.drawable.ic_light_rain;
+            } else if (mWeatherId >= 500 && mWeatherId <= 504) {
+                iconId = R.drawable.ic_rain;
+            } else if (mWeatherId == 511) {
+                iconId = R.drawable.ic_snow;
+            } else if (mWeatherId >= 520 && mWeatherId <= 531) {
+                iconId = R.drawable.ic_rain;
+            } else if (mWeatherId >= 600 && mWeatherId <= 622) {
+                iconId = R.drawable.ic_snow;
+            } else if (mWeatherId >= 701 && mWeatherId <= 761) {
+                iconId = R.drawable.ic_fog;
+            } else if (mWeatherId == 761 || mWeatherId == 781) {
+                iconId = R.drawable.ic_storm;
+            } else if (mWeatherId == 800) {
+                iconId = R.drawable.ic_clear;
+            } else if (mWeatherId == 801) {
+                iconId = R.drawable.ic_light_clouds;
+            } else if (mWeatherId >= 802 && mWeatherId <= 804) {
+                iconId = R.drawable.ic_cloudy;
+            }
+
+            if (iconId != 0) {
+                float scale = 1.2f;
+                mBitmap = BitmapFactory.decodeResource(getResources(), iconId);
+                float sizeY = (float) mBitmap.getHeight() * scale;
+                float sizeX = (float) mBitmap.getWidth() * scale;
+                mBitmap = Bitmap.createScaledBitmap(mBitmap, (int) sizeX, (int) sizeY, false);
             }
         }
 

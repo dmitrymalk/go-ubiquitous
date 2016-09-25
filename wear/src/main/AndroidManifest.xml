@@ -16,7 +16,7 @@
         android:theme="@android:style/Theme.DeviceDefault"
         tools:ignore="AllowBackup,GoogleAppIndexingWarning">
         <service
-            android:name="com.dmitrymalkovich.android.goubiquitous.SunshineWatchFace"
+            android:name=".SunshineWatchFace"
             android:label="@string/my_digital_name"
             android:permission="android.permission.BIND_WALLPAPER">
             <meta-data

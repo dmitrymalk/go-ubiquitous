@@ -36,6 +36,11 @@ import com.example.android.sunshine.app.R;
 import com.example.android.sunshine.app.Utility;
 import com.example.android.sunshine.app.data.WeatherContract;
 import com.example.android.sunshine.app.muzei.WeatherMuzeiSource;
+import com.google.android.gms.common.api.ResultCallback;
+import com.google.android.gms.wearable.DataApi;
+import com.google.android.gms.wearable.PutDataMapRequest;
+import com.google.android.gms.wearable.PutDataRequest;
+import com.google.android.gms.wearable.Wearable;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -347,6 +352,7 @@ public class SunshineSyncAdapter extends AbstractThreadedSyncAdapter {
                 updateWidgets();
                 updateMuzei();
                 notifyWeather();
+                notifyWear();
             }
             Log.d(LOG_TAG, "Sync Complete. " + cVVector.size() + " Inserted");
             setLocationStatus(getContext(), LOCATION_STATUS_OK);
@@ -373,6 +379,48 @@ public class SunshineSyncAdapter extends AbstractThreadedSyncAdapter {
             Context context = getContext();
             context.startService(new Intent(ACTION_DATA_UPDATED)
                     .setClass(context, WeatherMuzeiSource.class));
+        }
+    }
+
+    private static final String WEATHER_DATA_PATH = "/WEATHER_DATA_PATH";
+    private static final String WEATHER_DATA_ID = "WEATHER_DATA_ID";
+    private static final String WEATHER_DATA_HIGH = "WEATHER_DATA_HIGH";
+    private static final String WEATHER_DATA_LOW = "WEATHER_DATA_LOW";
+
+    private void notifyWear() {
+        String locationQuery = Utility.getPreferredLocation(getContext());
+        Uri weatherUri = WeatherContract.WeatherEntry
+                .buildWeatherLocationWithDate(locationQuery, System.currentTimeMillis());
+        Cursor cursor = getContext().getContentResolver()
+                .query(weatherUri, NOTIFY_WEATHER_PROJECTION, null, null, null);
+        if (cursor.moveToFirst()) {
+            int weatherId = cursor.getInt(INDEX_WEATHER_ID);
+            double high = cursor.getDouble(INDEX_MAX_TEMP);
+            double low = cursor.getDouble(INDEX_MIN_TEMP);
+
+            Log.d(LOG_TAG, "Sending weather information to android wear");
+
+            PutDataMapRequest dataMap = PutDataMapRequest.create(WEATHER_DATA_PATH);
+            dataMap.getDataMap().putDouble(WEATHER_DATA_HIGH, high);
+            dataMap.getDataMap().putDouble(WEATHER_DATA_LOW, low);
+            dataMap.getDataMap().putLong(WEATHER_DATA_ID, weatherId);
+            PutDataRequest request = dataMap.asPutDataRequest();
+
+            Log.d(LOG_TAG, "GoogleApiClient " + MainActivity.mGoogleApiClient.isConnected());
+
+            Wearable.DataApi.putDataItem(MainActivity.mGoogleApiClient, request)
+                    .setResultCallback(new ResultCallback<DataApi.DataItemResult>() {
+                        @Override
+                        public void onResult(DataApi.DataItemResult result) {
+                            if (!result.getStatus().isSuccess()) {
+                                Log.d(LOG_TAG, "Cannot send weather information, status code: "
+                                        + result.getStatus().getStatusCode());
+                            } else {
+                                Log.d(LOG_TAG, "Weather information was sent successfully "
+                                        + result.getDataItem().getUri());
+                            }
+                        }
+                    });
         }
     }
 
